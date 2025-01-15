@@ -1,8 +1,12 @@
-EXTENDED_LOGGING = False
+import torch
+print(torch.cuda.is_available())  # Should return True
+print(torch.cuda.get_device_name(0))  # Should show your GPU name
+
+EXTENDED_LOGGING = True
 
 # set to 0 to deactivate writing to keyboard
 # try lower values like 0.002 (fast) first, take higher values like 0.05 in case it fails
-WRITE_TO_KEYBOARD_INTERVAL = 0.002
+WRITE_TO_KEYBOARD_INTERVAL = 0
 
 if __name__ == '__main__':
 
@@ -50,6 +54,7 @@ if __name__ == '__main__':
     from colorama import Fore, Style
     import colorama
     import pyautogui
+    from torch import device
 
     if os.name == "nt" and (3, 8) <= sys.version_info < (3, 99):
         from torchaudio._extension.utils import _init_dll_path
@@ -145,30 +150,30 @@ if __name__ == '__main__':
         prev_text = ""
         text_detected("")
 
-        if WRITE_TO_KEYBOARD_INTERVAL:
-            pyautogui.write(f"{text} ", interval=WRITE_TO_KEYBOARD_INTERVAL)  # Adjust interval as needed
+        # if WRITE_TO_KEYBOARD_INTERVAL:
+        #     pyautogui.write(f"{text} ", interval=WRITE_TO_KEYBOARD_INTERVAL)  # Adjust interval as needed
 
     # Recorder configuration
     recorder_config = {
         'spinner': False,
-        'model': 'large-v2', # or large-v2 or deepdml/faster-whisper-large-v3-turbo-ct2 or ...
+        'model': 'tiny.en', # or large-v2 or deepdml/faster-whisper-large-v3-turbo-ct2 or ...
         'download_root': None, # default download root location. Ex. ~/.cache/huggingface/hub/ in Linux
         # 'input_device_index': 1,
-        'realtime_model_type': 'tiny.en', # or small.en or distil-small.en or ...
+        'realtime_model_type': 'tiny.en', # or small.en or distil-small.en or tiny.en or small.en
         'language': 'en',
-        'silero_sensitivity': 0.05,
-        'webrtc_sensitivity': 3,
+        'silero_sensitivity': 0.1,
+        'webrtc_sensitivity': 1,
         'post_speech_silence_duration': unknown_sentence_detection_pause,
-        'min_length_of_recording': 1.1,        
+        'min_length_of_recording': 0.5,        
         'min_gap_between_recordings': 0,                
         'enable_realtime_transcription': True,
-        'realtime_processing_pause': 0.02,
+        'realtime_processing_pause': 0.01,
         'on_realtime_transcription_update': text_detected,
-        #'on_realtime_transcription_stabilized': text_detected,
+        'on_realtime_transcription_stabilized': None,
         'silero_deactivity_detection': True,
         'early_transcription_on_silence': 0,
-        'beam_size': 5,
-        'beam_size_realtime': 3,
+        'beam_size': 3,
+        'beam_size_realtime': 1,
         # 'batch_size': 0,
         # 'realtime_batch_size': 0,        
         'no_log_file': True,
@@ -195,6 +200,8 @@ if __name__ == '__main__':
     if args.root is not None:
         recorder_config['download_root'] = args.root
         print(f"Argument 'download_root' set to {recorder_config['download_root']}")
+
+    recorder_config['device'] = 'cuda' # or cpu
 
     if EXTENDED_LOGGING:
         recorder_config['level'] = logging.DEBUG
