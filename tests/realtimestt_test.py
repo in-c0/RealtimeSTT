@@ -54,7 +54,9 @@ if __name__ == '__main__':
     from colorama import Fore, Style
     import colorama
     import pyautogui
-    from torch import device
+    
+    from torch import device    
+    from detoxify import Detoxify
 
     if os.name == "nt" and (3, 8) <= sys.version_info < (3, 99):
         from torchaudio._extension.utils import _init_dll_path
@@ -98,12 +100,22 @@ if __name__ == '__main__':
         return text
 
 
+    detoxify_model = Detoxify('original')
+
     def text_detected(text):
         global prev_text, displayed_text, rich_text_stored
 
         text = preprocess_text(text)
+        is_toxic = False  # Default value
 
-        sentence_end_marks = ['.', '!', '?', '。'] 
+        try:
+            # Detect toxicity only if text is not empty
+            if text.strip():
+                is_toxic = detoxify_model.predict(text)["toxicity"] > 0.7
+        except Exception as e:
+            console.print(f"[red bold]Error in toxicity detection: {e}[/red bold]")
+
+        sentence_end_marks = ['.', '!', '?', '。']
         if text.endswith("..."):
             recorder.post_speech_silence_duration = mid_sentence_detection_pause
         elif text and text[-1] in sentence_end_marks and prev_text and prev_text[-1] in sentence_end_marks:
@@ -116,15 +128,12 @@ if __name__ == '__main__':
         # Build Rich Text with alternating colors
         rich_text = Text()
         for i, sentence in enumerate(full_sentences):
-            if i % 2 == 0:
-                #rich_text += Text(sentence, style="bold yellow") + Text(" ")
-                rich_text += Text(sentence, style="yellow") + Text(" ")
-            else:
-                rich_text += Text(sentence, style="cyan") + Text(" ")
-        
-        # If the current text is not a sentence-ending, display it in real-time
+            style = "red bold" if is_toxic else ("yellow" if i % 2 == 0 else "cyan")
+            rich_text += Text(sentence, style=style) + Text(" ")
+
         if text:
-            rich_text += Text(text, style="bold yellow")
+            style = "red bold" if is_toxic else "bold yellow"
+            rich_text += Text(text, style=style)
 
         new_displayed_text = rich_text.plain
 
@@ -134,24 +143,23 @@ if __name__ == '__main__':
             live.update(panel)
             rich_text_stored = rich_text
 
+
     def process_text(text):
         global recorder, full_sentences, prev_text
-        recorder.post_speech_silence_duration = unknown_sentence_detection_pause
 
-        text = preprocess_text(text)
-        text = text.rstrip()
+        text = preprocess_text(text).rstrip()
         if text.endswith("..."):
-            text = text[:-2]
-                
+            text = text[:-3]
+
         if not text:
             return
 
         full_sentences.append(text)
         prev_text = ""
-        text_detected("")
-
-        # if WRITE_TO_KEYBOARD_INTERVAL:
-        #     pyautogui.write(f"{text} ", interval=WRITE_TO_KEYBOARD_INTERVAL)  # Adjust interval as needed
+        try:
+            text_detected(text)
+        except Exception as e:
+            console.print(f"[red bold]Error in processing text: {e}[/red bold]")
 
     # Recorder configuration
     recorder_config = {
