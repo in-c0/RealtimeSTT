@@ -54,7 +54,7 @@ if __name__ == '__main__':
     from colorama import Fore, Style
     import colorama
     import pyautogui
-    
+
     from torch import device    
     from detoxify import Detoxify
 
@@ -106,14 +106,6 @@ if __name__ == '__main__':
         global prev_text, displayed_text, rich_text_stored
 
         text = preprocess_text(text)
-        is_toxic = False  # Default value
-
-        try:
-            # Detect toxicity only if text is not empty
-            if text.strip():
-                is_toxic = detoxify_model.predict(text)["toxicity"] > 0.7
-        except Exception as e:
-            console.print(f"[red bold]Error in toxicity detection: {e}[/red bold]")
 
         sentence_end_marks = ['.', '!', '?', '。']
         if text.endswith("..."):
@@ -125,15 +117,20 @@ if __name__ == '__main__':
 
         prev_text = text
 
-        # Build Rich Text with alternating colors
+        # Split text into chunks (e.g., sentences or words)
+        chunks = text.split()  # Splitting by words. Use `.split('. ')` for sentence-level splitting.
+        
         rich_text = Text()
-        for i, sentence in enumerate(full_sentences):
-            style = "red bold" if is_toxic else ("yellow" if i % 2 == 0 else "cyan")
-            rich_text += Text(sentence, style=style) + Text(" ")
 
-        if text:
-            style = "red bold" if is_toxic else "bold yellow"
-            rich_text += Text(text, style=style)
+        # Check each chunk for toxicity and apply styles
+        for chunk in chunks:
+            try:
+                is_toxic = detoxify_model.predict(chunk)["toxicity"] > 0.7
+                style = "red bold" if is_toxic else "yellow"
+            except Exception as e:
+                console.print(f"[red bold]Error in toxicity detection: {e}[/red bold]")
+                style = "yellow"  # Default to non-toxic style if detection fails
+            rich_text += Text(chunk + " ", style=style)  # Add a space after each chunk
 
         new_displayed_text = rich_text.plain
 
@@ -142,6 +139,7 @@ if __name__ == '__main__':
             panel = Panel(rich_text, title="[bold green]Live Transcription[/bold green]", border_style="bold green")
             live.update(panel)
             rich_text_stored = rich_text
+
 
 
     def process_text(text):
@@ -170,9 +168,9 @@ if __name__ == '__main__':
         'realtime_model_type': 'tiny.en', # or small.en or distil-small.en or tiny.en or small.en
         'language': 'en',
         'silero_sensitivity': 0.1,
-        'webrtc_sensitivity': 1,
+        'webrtc_sensitivity': 3,
         'post_speech_silence_duration': unknown_sentence_detection_pause,
-        'min_length_of_recording': 0.5,        
+        'min_length_of_recording': 0.1,        
         'min_gap_between_recordings': 0,                
         'enable_realtime_transcription': True,
         'realtime_processing_pause': 0.01,
